@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Monitoring Stock</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- ================= STYLE ================= -->
+<style>
+body{
+  font-family:Arial,Helvetica,sans-serif;
+  margin:0;
+  background:#f4f4f4;
+}
+.hidden{display:none}
+
+/* ===== LOGIN ===== */
+.login-box{
+  max-width:350px;
+  margin:120px auto;
+  background:#fff;
+  padding:25px;
+  border-radius:8px;
+  box-shadow:0 0 12px rgba(0,0,0,.15);
+}
+.login-box h2{text-align:center}
+.login-box input,.login-box button{
+  width:100%;padding:10px;margin-top:10px
+}
+.login-box button{
+  background:#198754;color:#fff;
+  border:none;border-radius:5px;cursor:pointer
+}
+
+/* ===== HEADER ===== */
+.topbar{
+  background: #198754; /* hijau */
+  color: #fff; /* teks putih */
+  border-bottom:2px solid #e5e5e5;
+  padding:14px 24px;
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+}
+
+
+/* LEFT */
+.left-header{
+  display:flex;
+  flex-direction:column;
+}
+.header-title{
+  font-size:20px;
+  font-weight:bold;
+}
+.header-role{
+  font-size:14px;
+  margin-top:4px;
+  color:#555;
+}
+
+/* RIGHT */
+.right-header{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  text-align:right;
+}
+.right-header button{
+  background:none;
+  border:none;
+  padding:0;
+  font-size:15px;
+  cursor:pointer;
+}
+.right-header button:hover{
+  text-decoration:underline;
+  color:#0d6efd;
+}
+
+/* ===== CONTENT ===== */
+.container{
+  background:#fff;
+  max-width:1200px;
+  margin:25px auto;
+  padding:25px;
+  border-radius:8px;
+}
+
+h2{margin-top:0}
+
+/* FORM */
+form{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:12px;
+}
+input,select{padding:9px}
+
+/* BUTTON ROW */
+.button-row{
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+.save-btn{background:#198754;color:#fff}
+.export-btn{background:#0d6efd;color:#fff}
+.button-row button{
+  padding:10px 22px;
+  border:none;border-radius:5px;cursor:pointer
+}
+
+/* FILTER */
+.filter{margin:15px 0}
+
+/* TABLE */
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:18px;
+}
+th,td{
+  border:1px solid #ddd;
+  padding:9px;
+  text-align:center;
+}
+th{background:#f1f1f1}
+
+/* WARNING */
+.low-stock{
+  background:#f8d7da;
+  color:#842029;
+  font-weight:bold;
+}
+.badge-danger{
+  background:#dc3545;
+  color:#fff;
+  padding:4px 8px;
+  border-radius:4px;
+}
+
+/* ACTION */
+.action-btn{
+  padding:4px 8px;
+  border:none;
+  border-radius:4px;
+  color:#fff;
+}
+.edit{background:#f0ad4e}
+.delete{background:#dc3545}
+
+@media(max-width:900px){
+  form{grid-template-columns:1fr}
+  .button-row{flex-direction:column;align-items:stretch}
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+</head>
+
+<body>
+
+<!-- ================= LOGIN ================= -->
+<div class="login-box" id="loginBox">
+<h2>Login Sistem</h2>
+<input id="username" placeholder="Username">
+<input id="password" type="password" placeholder="Password">
+<button onclick="login()">Login</button>
+<p id="loginMsg" style="color:red;text-align:center"></p>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app" class="hidden">
+
+<header class="topbar">
+  <div class="left-header">
+    <div class="header-title">Monitoring Stock</div>
+    <div class="header-role" id="roleText"></div>
+  </div>
+
+  <div class="right-header">
+    <button onclick="openPage('packing')">Packing</button>
+    <button onclick="openPage('baku')">Bahan Baku</button>
+    <button onclick="logout()">Logout</button>
+  </div>
+</header>
+
+<div class="container">
+
+<h2 id="pageTitle"></h2>
+
+<form id="stokForm">
+<input id="nama" placeholder="Nama Bahan" required>
+<input id="kode" placeholder="Kode / Lot" required>
+<input id="supplier" placeholder="Supplier" required>
+
+<select id="shift" required>
+<option value="">Shift</option>
+<option>Shift 1</option>
+<option>Shift 2</option>
+<option>Shift 3</option>
+</select>
+
+<input id="qty" type="number" placeholder="Qty" required>
+<input id="min" type="number" placeholder="Stok Minimum" required>
+
+<select id="satuan">
+<option>Kg</option>
+<option>Pcs</option>
+<option>Roll</option>
+</select>
+
+<div class="button-row">
+<button type="submit" class="save-btn">💾 Simpan</button>
+<button type="button" class="export-btn" onclick="exportExcel()">📊 Export Excel</button>
+</div>
+</form>
+
+<div class="filter">
+<select id="filterShift" onchange="loadData()">
+<option value="">Semua Shift</option>
+<option>Shift 1</option>
+<option>Shift 2</option>
+<option>Shift 3</option>
+</select>
+</div>
+
+<table>
+<thead>
+<tr>
+<th>Nama</th><th>Kode</th><th>Supplier</th>
+<th>Shift</th><th>Qty</th><th>Min</th>
+<th>Status</th><th>Aksi</th>
+</tr>
+</thead>
+<tbody id="dataBody"></tbody>
+</table>
+
+</div>
+</div>
+
+<script>
+const users=[
+{u:"admin",p:"admin123",r:"Admin"},
+{u:"gudang",p:"gudang123",r:"Gudang"}
+];
+
+let role="",page="",editIndex=-1;
+
+function login(){
+const u=username.value,p=password.value;
+const user=users.find(x=>x.u===u&&x.p===p);
+if(!user){loginMsg.innerText="Login gagal";return;}
+role=user.r;
+loginBox.classList.add("hidden");
+app.classList.remove("hidden");
+roleText.innerText=role;
+openPage("packing");
+}
+function logout(){location.reload();}
+
+function openPage(p){
+page=p;
+pageTitle.innerText=p==="packing"?"Stok Packing":"Stok Bahan Baku";
+stokForm.classList.toggle("hidden",role!=="Admin");
+loadData();
+}
+
+stokForm.onsubmit=e=>{
+e.preventDefault();
+const data=JSON.parse(localStorage.getItem(page))||[];
+const obj={
+nama:nama.value,kode:kode.value,supplier:supplier.value,
+shift:shift.value,qty:+qty.value,min:+min.value,satuan:satuan.value
+};
+if(editIndex>-1){data[editIndex]=obj;editIndex=-1;}
+else{data.push(obj);}
+localStorage.setItem(page,JSON.stringify(data));
+stokForm.reset();loadData();
+};
+
+function loadData(){
+const data=JSON.parse(localStorage.getItem(page))||[];
+const fs=filterShift.value;
+dataBody.innerHTML="";
+data.filter(d=>!fs||d.shift===fs).forEach((d,i)=>{
+const low=d.qty<=d.min;
+dataBody.innerHTML+=`
+<tr class="${low?'low-stock':''}">
+<td>${d.nama}</td>
+<td>${d.kode}</td>
+<td>${d.supplier}</td>
+<td>${d.shift}</td>
+<td>${d.qty} ${d.satuan}</td>
+<td>${d.min}</td>
+<td>${low?'<span class="badge-danger">STOK KRITIS</span>':'Aman'}</td>
+<td>${role==="Admin"?
+`<button class="action-btn edit" onclick="editData(${i})">Edit</button>
+<button class="action-btn delete" onclick="delData(${i})">Hapus</button>`:"-"}</td>
+</tr>`;
+});
+}
+
+function editData(i){
+const d=JSON.parse(localStorage.getItem(page))[i];
+nama.value=d.nama;kode.value=d.kode;
+supplier.value=d.supplier;shift.value=d.shift;
+qty.value=d.qty;min.value=d.min;satuan.value=d.satuan;
+editIndex=i;
+}
+
+function delData(i){
+if(confirm("Hapus data?")){
+const d=JSON.parse(localStorage.getItem(page));
+d.splice(i,1);
+localStorage.setItem(page,JSON.stringify(d));
+loadData();
+}
+}
+
+function exportExcel(){
+const data=JSON.parse(localStorage.getItem(page))||[];
+const fs=filterShift.value;
+const filtered=data.filter(d=>!fs||d.shift===fs);
+if(!filtered.length){alert("Data kosong");return;}
+const ws=XLSX.utils.json_to_sheet(filtered);
+const wb=XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(wb,ws,"Stok");
+XLSX.writeFile(wb,`Stok_${page}_${fs||"All"}.xlsx`);
+}
+</script>
+
+</body>
+</html>
